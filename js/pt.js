@@ -21,7 +21,7 @@ var CONTAINER = document.querySelector('#container');
 
 // GLOBALS
 var sys;
-var camera, scene, renderer;
+var camera, scene, renderer, controls;
 var geometry, material, mesh, points;
 
 // CLASSES
@@ -39,46 +39,51 @@ var geometry, material, mesh, points;
 // }
 // storage class for many particles
 class Particles {
+	// takes source geometry and material
 	constructor(geo, mat) {
     this.points = new THREE.Points(geo, mat);
   }
+
+	animatePoints(){
+		for (var i =0; i < this.points.geometry.vertices.length; ++i){
+			this.points.geometry.vertices[i].x += .01;
+		}
+		this.points.geometry.verticesNeedUpdate = true;
+	}
 
 }
 
 // FUNCTIONS
 function init() {
-
+	// init camera
 	camera = new THREE.PerspectiveCamera( FOV, ASPECT,NEAR, FAR );
 	camera.position.z = 1;
-
+	// init controls
+	controls = new THREE.OrbitControls( camera );
+	// controls.enableDamping(true);
+	// controls.dampingFactor(.5);
+	// init scene
 	scene = new THREE.Scene();
-
 	geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-	// material = new THREE.MeshNormalMaterial();
 	material = new THREE.PointsMaterial({
             color: "yellow",
             size: 5,
             sizeAttenuation: false
         });
-
+	// init system
 	sys = new Particles(geometry, material);
 	scene.add(sys.points);
-
+	// init renderer
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	CONTAINER.appendChild( renderer.domElement );
-
 }
 
+// animated render loop
 function animate() {
-
 	requestAnimationFrame( animate );
-
-	for (var i =0; i < sys.points.geometry.vertices.length; ++i){
-		sys.points.geometry.vertices[i].x += .01;
-	}
-	sys.points.geometry.verticesNeedUpdate = true;
-	// console.log(scene);
+	//sys.animatePoints();
+	controls.update();
 	renderer.render( scene, camera );
 }
 
