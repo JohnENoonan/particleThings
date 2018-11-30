@@ -40,8 +40,21 @@ var geometry, material, mesh, points;
 // storage class for many particles
 class Particles {
 	// takes source geometry and material
-	constructor(geo, mat) {
-    this.points = new THREE.Points(geo, mat);
+	constructor(geo) {
+		// sprite to render points as
+		this.texture = new THREE.TextureLoader().load( './data/disc.png' );
+		this.color = "white"
+		this.size = .05
+		var material = new THREE.PointsMaterial({
+	    color: this.color,
+	    size: this.size,
+			map: this.texture,
+			// blending: THREE.AdditiveBlending,
+			transparent: true,
+	    sizeAttenuation: true
+	  });
+		material.alphaTest = 0.5;
+    this.points = new THREE.Points(geo, material);
   }
 
 	animatePoints(){
@@ -68,32 +81,10 @@ function init() {
 	// controls.dampingFactor(.5);
 	// init scene
 	scene = new THREE.Scene();
-	// init material and geometry for testing
+	// init geometry for testing
 	geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-	// var material = new THREE.ShaderMaterial( {
-	// 	uniforms: {
-	// 		size: { value: 5.0 },
-	// 		color: { value: new THREE.Color("rgb(255, 0, 0)") },
-	// 		texture: { value: new THREE.TextureLoader().load( "./data/ball.png" ) }
-	// 	},
-	// 	vertexShader: document.getElementById( 'vertexShader' ).textContent,
-	// 	fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-	// 	alphaTest: 0.9
-	// } );
-	var texture = new THREE.TextureLoader().load( './data/disc.png' );
-	console.log(texture);
-	material = new THREE.PointsMaterial({
-            color: "white",
-            size: .05,
-						map: texture,
-						blending: THREE.AdditiveBlending,
-  					transparent: true,
-            sizeAttenuation: true
-  });
-	material.alphaTest = 0.5;
 	// init system
-	sys = new Particles(geometry, material);
-	console.log(sys.points);
+	sys = new Particles(geometry);
 	scene.add(sys.points);
 	// init renderer
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
