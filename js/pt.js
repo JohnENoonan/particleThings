@@ -24,48 +24,41 @@ var sys;
 var camera, scene, renderer, controls;
 var geometry, material, mesh, points;
 
-// CLASSES
-// // data type for one single particle
-// class Particle{
-// 	// constuctor takes: starting position of point,
-// 	constuctor(origPos){
-// 		this.pos;
-// 		this.size = 1;
-// 		this.vel = new THREE.Vector3
-// 		this.restP = origPos;
-// 		this.pos = this.restP;
-// 	}
-//
-// }
 // storage class for many particles
 class Particles {
-	// takes source geometry and material
+	// takes source geometry
 	constructor(geo) {
 		// sprite to render points as
 		this.texture = new THREE.TextureLoader().load( './data/disc.png' );
-		this.color = "white"
-		this.size = .05
+		this.color = "white" // color of particles
+		this.geoScale = 1; // uniform scal used on geo
+		this.size = .01;
 		var material = new THREE.PointsMaterial({
 	    color: this.color,
 	    size: this.size,
 			map: this.texture,
-			// blending: THREE.AdditiveBlending,
 			transparent: true,
 	    sizeAttenuation: true
 	  });
-		material.alphaTest = 0.5;
+		material.alphaTest = 0.5; // allows for alpha in sprite to not be rendered
     this.points = new THREE.Points(geo, material);
   }
 
+	// testing function to animate points
 	animatePoints(){
-		for (var i =0; i < this.points.geometry.vertices.length; ++i){
-			this.points.geometry.vertices[i].x += .01;
+		var positions = this.points.geometry.attributes.position.array;
+		var length = this.points.geometry.attributes.position.count/3;
+		for(var i = 0; i < this.points.geometry.attributes.position.count; i+=3){
+			positions[i]+= .01;
 		}
-		this.points.geometry.verticesNeedUpdate = true;
+		// for (var i =0; i < this.points.geometry.vertices.length; ++i){
+		// 	this.points.geometry.vertices[i].x += .01;
+		// }
+		this.points.geometry.attributes.position.needsUpdate = true;
 	}
 	// update function called in render loop
 	update(){
-
+		// this.animatePoints();
 	}
 
 }
@@ -77,25 +70,54 @@ function init() {
 	camera.position.z = 1;
 	// init controls
 	controls = new THREE.OrbitControls( camera );
-	// controls.enableDamping(true);
-	// controls.dampingFactor(.5);
+	controls.enableDamping = true;
+	controls.dampingFactor = .9;
 	// init scene
 	scene = new THREE.Scene();
+	scene.background = new THREE.Color( 0x333333 );
 	// init geometry for testing
 	geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
 	// init system
-	sys = new Particles(geometry);
-	scene.add(sys.points);
+	loadModel("./data/bunnyLow.obj");
 	// init renderer
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	CONTAINER.appendChild( renderer.domElement );
 }
 
+// given object3D initialize system to its geometry
+function initSystem(object, child=0){
+	sys = new Particles(object.children[0].geometry);
+	scene.add(sys.points);
+}
+
+// helper function to load a modle given its url path
+function loadModel(model){
+	var loader = new THREE.OBJLoader();
+
+	loader.load(model,
+		// called when resource is loaded
+		function ( object ) {
+			object.scale.x = object.scale.y = object.scale.z = 3;
+			initSystem(object);
+		},
+		// called when loading is in progresses
+		function ( xhr ) {
+			console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+		},
+		// called when loading has errors
+		function ( error ) {
+			console.log( 'An error happened loading ' + model );
+		}
+	);
+}
+
 // animated render loop
 function animate() {
 	requestAnimationFrame( animate );
-	sys.update();
+	if (sys != null){
+		sys.update();
+	}
 	controls.update();
 	renderer.render( scene, camera );
 }
