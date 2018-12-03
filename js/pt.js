@@ -11,7 +11,18 @@
 // ui is http://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage
 			// https://stemkoski.github.io/Three.js/GUI-Controller.html
 
-// orbit control tumbles
+
+//TODO:
+/*
+	get mouse velocity
+	get points that need to be affected
+	move Points
+
+	create noise field
+	attract and repel ability
+	UI stuff
+
+*/
 
 
 // CONSTANTS
@@ -20,9 +31,9 @@ var FOV = 70; var NEAR = 0.01; var FAR = 10;
 var CONTAINER = document.querySelector('#container');
 
 // GLOBALS
-var sys;
+var sys, mouseVel;
 var camera, scene, renderer, controls;
-var geometry, material, mesh, points;
+var geometry, material, points;
 
 // storage class for many particles
 class Particles {
@@ -56,6 +67,18 @@ class Particles {
 		// }
 		this.points.geometry.attributes.position.needsUpdate = true;
 	}
+	movePoints(sX, sY){
+		var positions = this.points.geometry.attributes.position.array;
+		sX/=1000.0; sY/=1000.0;
+		for(var i = 0; i < this.points.geometry.attributes.position.count; i++){
+			positions[i++] += sX;
+			positions[i++] += sY;
+			i++;
+		}
+		this.points.geometry.attributes.position.needsUpdate = true;
+		console.log(sX,sY);
+	}
+
 	// update function called in render loop
 	update(){
 		// this.animatePoints();
@@ -72,6 +95,9 @@ function init() {
 	controls = new THREE.OrbitControls( camera );
 	controls.enableDamping = true;
 	controls.dampingFactor = .9;
+	// init mouse velocity
+	mouseVel = new MouseSpeed();
+	mouseVel.init(handleVelocity); // assign callback
 	// init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0x333333 );
@@ -98,6 +124,7 @@ function loadModel(model){
 	loader.load(model,
 		// called when resource is loaded
 		function ( object ) {
+			console.log(object);
 			object.scale.x = object.scale.y = object.scale.z = 3;
 			initSystem(object);
 		},
@@ -110,6 +137,16 @@ function loadModel(model){
 			console.log( 'An error happened loading ' + model );
 		}
 	);
+}
+
+// call back function that is executed on change of mouse velocity
+function handleVelocity(){
+	var speedX = mouseVel.speedX;
+	var speedY = mouseVel.speedY;
+	// do anything you want with speed values
+	// sys.movePoints(speedX, speedY);
+	// sys.animatePoints();
+	// console.log(speedX, speedY);
 }
 
 // animated render loop
