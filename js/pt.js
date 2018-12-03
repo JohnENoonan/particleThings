@@ -14,7 +14,6 @@
 
 //TODO:
 /*
-	get mouse velocity
 	get points that need to be affected
 	move Points
 
@@ -27,61 +26,55 @@
 
 // CONSTANTS
 var ASPECT = window.innerWidth / window.innerHeight;
-var FOV = 70; var NEAR = 0.01; var FAR = 10;
-var CONTAINER = document.querySelector('#container');
+var FOV = 80; var NEAR = 0.01; var FAR = 10;
+var CONTAINER = document.querySelector('#container'); // html dom container
 
 // GLOBALS
-var sys, mouseVel;
+var sys; // particle system object
+var mouseVel; // MouseSpeed object used to get mouse velocity
 var camera, scene, renderer, controls;
-var geometry, material, points;
 
-// storage class for many particles
+
+// Particle system object that stores particles as THREE.PointsMaterial
 class Particles {
-	// takes source geometry
+	// takes source geometry as THREE.Geometry.
 	constructor(geo) {
 		// sprite to render points as
 		this.texture = new THREE.TextureLoader().load( './data/disc.png' );
 		this.color = "white" // color of particles
-		this.geoScale = 1; // uniform scal used on geo
-		this.size = .01;
+		this.geoScale = 1; // uniform scale used on geo
+		this.spriteScale = .01; // scale of the sprite
+		this.velocityScale = 1000.0; // divisor factor for velocity
 		var material = new THREE.PointsMaterial({
 	    color: this.color,
-	    size: this.size,
+	    size: this.spriteScale,
 			map: this.texture,
 			transparent: true,
 	    sizeAttenuation: true
 	  });
 		material.alphaTest = 0.5; // allows for alpha in sprite to not be rendered
-    this.points = new THREE.Points(geo, material);
+    this.points = new THREE.Points(geo, material); // points object that has particles
+		console.log(this.points);
+		this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
   }
 
 	// testing function to animate points
 	animatePoints(){
-		var positions = this.points.geometry.attributes.position.array;
-		var length = this.points.geometry.attributes.position.count/3;
-		for(var i = 0; i < this.points.geometry.attributes.position.count; i+=3){
-			positions[i]+= .01;
+		// moves model right on x axis
+		for (var i = 0; i < this.points.geometry.vertices.length; ++i){
+			this.points.geometry.vertices[i].x += .001;
 		}
-		// for (var i =0; i < this.points.geometry.vertices.length; ++i){
-		// 	this.points.geometry.vertices[i].x += .01;
-		// }
-		this.points.geometry.attributes.position.needsUpdate = true;
+		this.points.geometry.verticesNeedUpdate = true;
 	}
+	// testing to move points based on mouse movement
 	movePoints(sX, sY){
-		var positions = this.points.geometry.attributes.position.array;
-		sX/=1000.0; sY/=1000.0;
-		for(var i = 0; i < this.points.geometry.attributes.position.count; i++){
-			positions[i++] += sX;
-			positions[i++] += sY;
-			i++;
+		// moves entire model according to mouse velocity
+		sX/=this.velocityScale; sY/=this.velocityScale;
+		for (var i = 0; i < this.points.geometry.vertices.length; ++i){
+			this.points.geometry.vertices[i].x += sX;
+			this.points.geometry.vertices[i].y += sY;
 		}
-		this.points.geometry.attributes.position.needsUpdate = true;
-		console.log(sX,sY);
-	}
-
-	// update function called in render loop
-	update(){
-		// this.animatePoints();
+		this.points.geometry.verticesNeedUpdate = true;
 	}
 
 }
@@ -101,8 +94,6 @@ function init() {
 	// init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0x333333 );
-	// init geometry for testing
-	geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
 	// init system
 	loadModel("./data/bunnyLow.obj");
 	// init renderer
@@ -111,9 +102,12 @@ function init() {
 	CONTAINER.appendChild( renderer.domElement );
 }
 
-// given object3D initialize system to its geometry
+// given Mesh initialize system to its geometry
 function initSystem(object, child=0){
-	sys = new Particles(object.children[0].geometry);
+	// convert to geometry
+	var geo = new THREE.Geometry().fromBufferGeometry( object.children[0].geometry );
+	sys = new Particles(geo);
+	console.log(sys.points.geometry);
 	scene.add(sys.points);
 }
 
@@ -124,8 +118,6 @@ function loadModel(model){
 	loader.load(model,
 		// called when resource is loaded
 		function ( object ) {
-			console.log(object);
-			object.scale.x = object.scale.y = object.scale.z = 3;
 			initSystem(object);
 		},
 		// called when loading is in progresses
@@ -142,19 +134,15 @@ function loadModel(model){
 // call back function that is executed on change of mouse velocity
 function handleVelocity(){
 	var speedX = mouseVel.speedX;
-	var speedY = mouseVel.speedY;
+	var speedY = (-1)*mouseVel.speedY; // negate to fix to y inversion
 	// do anything you want with speed values
-	// sys.movePoints(speedX, speedY);
+	sys.movePoints(speedX, speedY);
 	// sys.animatePoints();
-	// console.log(speedX, speedY);
 }
 
 // animated render loop
 function animate() {
 	requestAnimationFrame( animate );
-	if (sys != null){
-		sys.update();
-	}
 	controls.update();
 	renderer.render( scene, camera );
 }
