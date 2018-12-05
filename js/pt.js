@@ -80,17 +80,6 @@ class Particles {
   }
   // takes mouse position as vector3 and mouse velocity as vector2
   testMouse(mVec, mVel) {
-    var verts = this.getAffectedPoints(mVec);
-    mVel.divideScalar(this.velocityScale);
-    for (var i = 0; i < verts.length; ++i) {
-      this.points.geometry.vertices[verts[i]].x += mVel.x;
-      this.points.geometry.vertices[verts[i]].y += mVel.y;
-    }
-    this.points.geometry.verticesNeedUpdate = true;
-  }
-  // return list of point indexes that should be affected by mouse
-  // input is mouse in window coordinates
-  getAffectedPoints(mVec) {
     var mPos = new THREE.Vector3(); // mouse position based on camera
     var targetZ = 0; // what plane the mouse is in
     mVec.unproject(camera); // de project point
@@ -99,6 +88,34 @@ class Particles {
     var distance = (targetZ - camera.position.z) / mVec.z;
     // put in projected space
     mPos.copy(camera.position).add(mVec.multiplyScalar(distance));
+    // console.log(mPos);
+    var rotated = new THREE.Vector3();
+    rotated.copy(mPos);
+    rotated.applyQuaternion(camera.quaternion);
+
+    // get affected vertices
+    var verts = this.getAffectedPoints(mPos);
+    mVel.divideScalar(this.velocityScale);
+    mVel.applyQuaternion(camera.quaternion);
+    console.log("VEL");
+    console.log(mVel);
+
+    var matrix = new THREE.Matrix4();
+    matrix.extractRotation( camera.matrix );
+    var camDirection = new THREE.Vector3( 0, 0, 1 );
+    camDirection.applyMatrix4( matrix );
+
+    for (var i = 0; i < verts.length; ++i) {
+      this.points.geometry.vertices[verts[i]].x += mVel.x;
+      this.points.geometry.vertices[verts[i]].y += mVel.y;
+      this.points.geometry.vertices[verts[i]].z += mVel.z;
+    }
+    this.points.geometry.verticesNeedUpdate = true;
+  }
+  // return list of point indexes that should be affected by mouse
+  // input is mouse in window coordinates
+  getAffectedPoints(mPos) {
+
     // console.log(mPos);
     var affectedVerts = []; // list of verts that are within region
     for (var i = 0; i < this.points.geometry.vertices.length; ++i) {
@@ -126,6 +143,8 @@ function init() {
   mouseVel.init(handleVelocity); // assign callback
   // init scene
   scene = new THREE.Scene();
+  var axesHelper = new THREE.AxesHelper( 5 );
+  scene.add( axesHelper );
   scene.background = new THREE.Color(0x333333);
   // init system
   loadModel("./data/bunnyLow.obj");
@@ -167,7 +186,23 @@ function loadModel(model) {
 
 // call back function that is executed on change of mouse velocity
 function handleVelocity() {
-  var mVel = new THREE.Vector2(mouseVel.speedX, (-1) * mouseVel.speedY);
+  // var mVel = new THREE.Vector2(mouseVel.speedX, (-1) * mouseVel.speedY);
+  var mVel = mouseVel.mVel;
+
+  var matrix = new THREE.Matrix4();
+  matrix.extractRotation( camera.matrix );
+  var camDirection = new THREE.Vector3( 0, 0, 1 );
+  camDirection.applyMatrix4( matrix ); // camera direction
+
+  //TODO
+  /*
+  need to convert so that the particle moves the same direction as the mouse no matter
+  where the camera is
+  maybe need direction of camera
+    */
+
+  // mVel.cross(direction);
+  // console.log(camDirection);
   // do anything you want with speed values
   // sys.movePoints(speedX, speedY);
   // sys.animatePoints();
