@@ -14,10 +14,8 @@
 
 //TODO:
 /*
-	get points that need to be affected
+	create noise field to add to effects
 
-	create noise field
-	attract and repel ability
 	UI stuff
 
 */
@@ -26,7 +24,7 @@
 var ASPECT = window.innerWidth / window.innerHeight;
 var FOV = 80;
 var NEAR = 0.01;
-var FAR = 10;
+var FAR = 1000;
 var CONTAINER = document.querySelector('#container'); // html dom container
 
 // GLOBALS
@@ -42,17 +40,23 @@ var camera, scene, renderer, controls; // THREE vars
 class Particles {
   // takes source geometry as THREE.Geometry.
   constructor(geo) {
-    // sprite to render points as
+    // view variables
     this.texture = new THREE.TextureLoader().load('./data/disc.png');
     this.color = "white" // color of particles
     this.geoScale = 1; // uniform scale used on geo
     this.spriteScale = .01; // scale of the sprite
+
+    // movement variables
     this.velocityScale = 1000.0; // divisor factor for velocity
     this.mouseRad = .001; // represented as squared distance
     this.forceSpeed = .01; // speed points are attracted/repelled
+    this.returnSpeed = .01; // speed that the points use to return to original pos
+
+    // flags
     this.attract = false; // whether to have mouse attracttion on
     this.repel = false; // whether to have mouse repel on
-    this.mouseDrag = false; // whether to have mouse dragging on
+    this.mouseDrag = true; // whether to have mouse dragging on
+    this.returns = true;
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -61,21 +65,14 @@ class Particles {
       sizeAttenuation: true
     });
     material.alphaTest = 0.5; // allows for alpha in sprite to not be rendered
-    this.points = new THREE.Points(geo, material); // points object that has particles
+    // set this.points object that has particles
+    this.points = new THREE.Points(geo, material);
     this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
     this.points.name = "points object";
     this.points.geometry.name = "geo object";
-    console.log(this.points.geometry);
+    this.restP = deepCopy(this.points.geometry.vertices);
   }
 
-  // testing function to animate points
-  animatePoints() {
-    // moves model right on x axis
-    for (var i = 0; i < this.points.geometry.vertices.length; ++i) {
-      this.points.geometry.vertices[i].x += .001;
-    }
-    this.points.geometry.verticesNeedUpdate = true;
-  }
   // testing to move points based on mouse movement
   movePoints(sX, sY) {
     // moves entire model according to mouse velocity
@@ -87,34 +84,9 @@ class Particles {
     }
     this.points.geometry.verticesNeedUpdate = true;
   }
-  // takes mouse position as vector3 and mouse velocity as vector2
-  testMouse(mVec, mVel) {
-    var mPos = new THREE.Vector3(); // mouse position based on camera
-    var targetZ = 0; // what plane the mouse is in
-    mVec.unproject(camera); // de project point
-    mVec.sub(camera.position).normalize(); // get from origin
-    // get position under mouse on plane targetZ
-    var distance = (targetZ - camera.position.z) / mVec.z;
-    // put in projected space
-    mPos.copy(camera.position).add(mVec.multiplyScalar(distance));
-    // console.log(mPos);
-    var rotated = new THREE.Vector3();
-    rotated.copy(mPos);
 
-    rotated.applyQuaternion(camera.quaternion);
-    console.log("ROTATED");
-    console.log(rotated);
-    // get affected vertices
-    var verts = this.getAffectedPoints(mPos);
-    mVel.divideScalar(this.velocityScale);
-
-    var matrix = new THREE.Matrix4();
-    matrix.extractRotation( camera.matrix );
-    var camDirection = new THREE.Vector3( 0, 0, 1 );
-    camDirection.applyMatrix4( matrix );
-  }
   // return list of point indexes that should be affected by mouse
-  // input is mouse in window coordinates
+  // input is Vector2 in window coordinates [-1,1]
   getAffectedPoints(mPos) {
     var affectedVerts = []; // list of verts that are within region
     for (var i = 0; i < this.points.geometry.vertices.length; ++i) {
@@ -126,7 +98,7 @@ class Particles {
     return affectedVerts;
   }
 
-  // edit vertices with indexs in list and add velocity
+  // edit vertices with indexs in list by adding mouse velocity
   mouseDragPoints(verts, vel, mVec){
     vel.divideScalar(this.velocityScale); // scale velocity
     // get unit circle position of camera
@@ -147,7 +119,7 @@ class Particles {
     for (var i = 0; i < verts.length; ++i) {
       var vert = this.points.geometry.vertices[verts[i]];
       // make sure not to move point if it is "on" center
-      if (!center.distanceToSquared(vert) < .001){
+      if (!vert.distanceToSquared(center) < .01){
         var diff = new THREE.Vector3().subVectors(center, vert);
         vert.add(diff.multiplyScalar(this.forceSpeed));
       }
@@ -165,6 +137,28 @@ class Particles {
     this.points.geometry.verticesNeedUpdate = true;
   }
 
+  // send all points out from center
+  blowupPoints(){
+    var center = this.points.geometry.boundingSphere.center;
+    var ran = range(0,this.points.geometry.vertices.length);
+    this.repelPoints(ran,center);
+  }
+
+  // have point at index animate towards going back to rest position
+  returnToRest(ind){
+    var vert = this.points.geometry.vertices[ind];
+    var dist = vert.distanceToSquared(this.restP[ind]);
+    // if points aren't in the same place
+    if (!dist < .01){
+      var diff = new THREE.Vector3().subVectors(this.restP[ind], vert);
+      var speed = this.returnSpeed;
+      if (dist < 1){
+        speed *= 2;
+      }
+      vert.add(diff.multiplyScalar(speed));
+    }
+  }
+
   // render loop update called each frame
   update(){
     if (this.attract){
@@ -173,12 +167,18 @@ class Particles {
         this.attractPoints(this.getAffectedPoints(mPosRay), mPosRay);
       }
     }
-    if (this.repel){
+    else if (this.repel){
       var mPosRay = getMouseFromRay(); // position of mouse from intersect
       if (mPosRay != null){
         this.repelPoints(this.getAffectedPoints(mPosRay), mPosRay);
       }
     }
+    if (this.returns){
+      for (var i = 0; i < this.restP.length;++i){
+        this.returnToRest(i);
+      }
+      this.points.geometry.verticesNeedUpdate = true;
+    }    
   }
 }
 
@@ -247,6 +247,15 @@ function loadModel(model) {
   );
 }
 
+function deepCopy(o) {
+   var output, v, key;
+   output = Array.isArray(o) ? [] : {};
+   for (key in o) {
+       v = o[key];
+       output[key] = (typeof v === "object") ? deepCopy(v) : v;
+   }
+   return output;
+}
 
 // get position of mouse based on first thing it intersects
 // returns null if no intersects
@@ -281,13 +290,19 @@ function getCamDir(){
   return camDirection;
 }
 
+// create list of range [start,...,end-1]
+function range(start, end) {
+    return (new Array(end - start)).fill(undefined).map((_, i) => i + start);
+}
+
 // call back function that is executed on change of mouse velocity
 function handleVelocity() {
   // var mVel = new THREE.Vector2(mouseVel.speedX, (-1) * mouseVel.speedY);
   var mVel = mouseVel.mVel;
   if (event != null) {
+    // update mouse position
     mouseScreen.set((event.clientX / window.innerWidth) * 2 - 1,
-												-(event.clientY / window.innerHeight) * 2 + 1);
+										-(event.clientY / window.innerHeight) * 2 + 1);
     // if mouse should drag points
     if (sys.mouseDrag){
       // get mouse 3D position from intersect
