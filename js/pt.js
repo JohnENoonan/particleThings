@@ -52,7 +52,7 @@ class Particles {
     this.forceSpeed = .01; // speed points are attracted/repelled
     this.attract = false; // whether to have mouse attracttion on
     this.repel = false; // whether to have mouse repel on
-    this.mouseDrag = true; // whether to have mouse dragging on
+    this.mouseDrag = false; // whether to have mouse dragging on
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -142,16 +142,25 @@ class Particles {
     this.points.geometry.verticesNeedUpdate = true;
   }
 
-  // TODO test this
+  // pull points from verts to center using forceSpeed
   attractPoints(verts, center){
     for (var i = 0; i < verts.length; ++i) {
       var vert = this.points.geometry.vertices[verts[i]];
+      // make sure not to move point if it is "on" center
       if (!center.distanceToSquared(vert) < .001){
         var diff = new THREE.Vector3().subVectors(center, vert);
-        // console.log(diff);
-        // vert += diff*3;
         vert.add(diff.multiplyScalar(this.forceSpeed));
       }
+    }
+    this.points.geometry.verticesNeedUpdate = true;
+  }
+
+  // push points from verts away from center using forceSpeed
+  repelPoints(verts, center){
+    for (var i = 0; i < verts.length; ++i) {
+      var vert = this.points.geometry.vertices[verts[i]];
+      var diff = new THREE.Vector3().subVectors(vert, center);
+      vert.add(diff.multiplyScalar(this.forceSpeed));
     }
     this.points.geometry.verticesNeedUpdate = true;
   }
@@ -161,7 +170,13 @@ class Particles {
     if (this.attract){
       var mPosRay = getMouseFromRay(); // position of mouse from intersect
       if (mPosRay != null){
-        sys.attractPoints(sys.getAffectedPoints(mPosRay), mPosRay);
+        this.attractPoints(this.getAffectedPoints(mPosRay), mPosRay);
+      }
+    }
+    if (this.repel){
+      var mPosRay = getMouseFromRay(); // position of mouse from intersect
+      if (mPosRay != null){
+        this.repelPoints(this.getAffectedPoints(mPosRay), mPosRay);
       }
     }
   }
