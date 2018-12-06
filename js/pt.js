@@ -31,9 +31,11 @@ var CONTAINER = document.querySelector('#container'); // html dom container
 
 // GLOBALS
 var sys; // particle system object
-var mouseVel, raycaster, mousePos; // MouseSpeed object used to get mouse velocity
-var camera, scene, renderer, controls;
-var cube;
+var mouseVel; // MouseSpeed object used to get mouse velocity
+var raycaster; // raycaster object used to pick
+var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
+var camera, scene, renderer, controls; // THREE vars
+
 
 
 // Particle system object that stores particles as THREE.PointsMaterial
@@ -47,7 +49,10 @@ class Particles {
     this.spriteScale = .01; // scale of the sprite
     this.velocityScale = 1000.0; // divisor factor for velocity
     this.mouseRad = .001; // represented as squared distance
-    this.forceSpeed = .001; // speed points are attracted/repelled
+    this.forceSpeed = .01; // speed points are attracted/repelled
+    this.attract = false; // whether to have mouse attracttion on
+    this.repel = false; // whether to have mouse repel on
+    this.mouseDrag = true; // whether to have mouse dragging on
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -142,13 +147,24 @@ class Particles {
     for (var i = 0; i < verts.length; ++i) {
       var vert = this.points.geometry.vertices[verts[i]];
       if (!center.distanceToSquared(vert) < .001){
-        var diff = THREE.Vector3().subVectors(center, vert);
-        vert += diff*this.forceSpeed;
+        var diff = new THREE.Vector3().subVectors(center, vert);
+        // console.log(diff);
+        // vert += diff*3;
+        vert.add(diff.multiplyScalar(this.forceSpeed));
       }
     }
     this.points.geometry.verticesNeedUpdate = true;
   }
 
+  // render loop update called each frame
+  update(){
+    if (this.attract){
+      var mPosRay = getMouseFromRay(); // position of mouse from intersect
+      if (mPosRay != null){
+        sys.attractPoints(sys.getAffectedPoints(mPosRay), mPosRay);
+      }
+    }
+  }
 }
 
 // FUNCTIONS
@@ -160,17 +176,17 @@ function init() {
   mouseVel = new MouseSpeed();
   mouseVel.init(handleVelocity); // assign callback
   // init scene
-  // testing
   scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x333333);
+  // testing
   var axesHelper = new THREE.AxesHelper( 5 );
   scene.add( axesHelper );
   var m = new THREE.MeshBasicMaterial( {color: 0xffffff} );
+  // init raycaster for picking
+  //TODO need to make threshold = point size or so
   raycaster = new THREE.Raycaster();
   raycaster.params.Points.threshold = .02;
-  mousePos = new THREE.Vector2();
-  // cube = new THREE.Mesh( new THREE.BoxGeometry( .3, .3, .3 ), m );
-  // scene.add( cube );
-  scene.background = new THREE.Color(0x333333);
+
   // init system
   loadModel("./data/bunny.obj");
   // init renderer
@@ -179,11 +195,13 @@ function init() {
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
   CONTAINER.appendChild(renderer.domElement);
-  // init controls
+  // init camera controls
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = .9;
   controls.enablePan = false;
+  controls.maxPolarAngle = 2;
+  controls.minPolarAngle = .8;
 }
 
 // given THREE.Mesh initialize system to its geometry
@@ -214,14 +232,17 @@ function loadModel(model) {
   );
 }
 
-// testing ray picking functionality
-function testingRay(mVec, mVel){
-  raycaster.setFromCamera( mVec, camera );
+
+// get position of mouse based on first thing it intersects
+// returns null if no intersects
+function getMouseFromRay(){
+  raycaster.setFromCamera( mouseScreen, camera );
 	var intersects = raycaster.intersectObject(sys.points);
   if ( intersects.length) {
-    var pos = sys.points.geometry.vertices[intersects[0].index];
-    var verts = sys.getAffectedPoints(pos);
-    sys.mouseDragPoints(verts, mVel, mVec);
+    return sys.points.geometry.vertices[intersects[0].index];;
+  }
+  else{
+    return null;
   }
 }
 
@@ -249,11 +270,18 @@ function getCamDir(){
 function handleVelocity() {
   // var mVel = new THREE.Vector2(mouseVel.speedX, (-1) * mouseVel.speedY);
   var mVel = mouseVel.mVel;
-
   if (event != null) {
-    var mVec = new THREE.Vector2((event.clientX / window.innerWidth) * 2 - 1,
-																	-(event.clientY / window.innerHeight) * 2 + 1);
-    testingRay(mVec, mVel);
+    mouseScreen.set((event.clientX / window.innerWidth) * 2 - 1,
+												-(event.clientY / window.innerHeight) * 2 + 1);
+    // if mouse should drag points
+    if (sys.mouseDrag){
+      // get mouse 3D position from intersect
+      var mPos = getMouseFromRay();
+      if (mPos){
+        var verts = sys.getAffectedPoints(mPos);
+        sys.mouseDragPoints(verts, mVel, mPos);
+      }
+    }
   }
 }
 
@@ -261,6 +289,10 @@ function handleVelocity() {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  if (sys){
+    sys.update();
+  }
+
   renderer.render(scene, camera);
 }
 
