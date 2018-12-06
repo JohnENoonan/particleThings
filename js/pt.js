@@ -31,8 +31,9 @@ var CONTAINER = document.querySelector('#container'); // html dom container
 
 // GLOBALS
 var sys; // particle system object
-var mouseVel; // MouseSpeed object used to get mouse velocity
+var mouseVel, raycaster, mousePos; // MouseSpeed object used to get mouse velocity
 var camera, scene, renderer, controls;
+var cube;
 
 
 // Particle system object that stores particles as THREE.PointsMaterial
@@ -45,7 +46,7 @@ class Particles {
     this.geoScale = 1; // uniform scale used on geo
     this.spriteScale = .01; // scale of the sprite
     this.velocityScale = 1000.0; // divisor factor for velocity
-    this.mouseRad = .01; // represented as squared distance
+    this.mouseRad = .001; // represented as squared distance
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -56,6 +57,8 @@ class Particles {
     material.alphaTest = 0.5; // allows for alpha in sprite to not be rendered
     this.points = new THREE.Points(geo, material); // points object that has particles
     this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
+    this.points.name = "points object";
+    this.points.geometry.name = "geo object";
     console.log(this.points.geometry);
   }
 
@@ -91,26 +94,18 @@ class Particles {
     // console.log(mPos);
     var rotated = new THREE.Vector3();
     rotated.copy(mPos);
-    rotated.applyQuaternion(camera.quaternion);
 
+    rotated.applyQuaternion(camera.quaternion);
+    console.log("ROTATED");
+    console.log(rotated);
     // get affected vertices
     var verts = this.getAffectedPoints(mPos);
     mVel.divideScalar(this.velocityScale);
-    mVel.applyQuaternion(camera.quaternion);
-    console.log("VEL");
-    console.log(mVel);
 
     var matrix = new THREE.Matrix4();
     matrix.extractRotation( camera.matrix );
     var camDirection = new THREE.Vector3( 0, 0, 1 );
     camDirection.applyMatrix4( matrix );
-
-    for (var i = 0; i < verts.length; ++i) {
-      this.points.geometry.vertices[verts[i]].x += mVel.x;
-      this.points.geometry.vertices[verts[i]].y += mVel.y;
-      this.points.geometry.vertices[verts[i]].z += mVel.z;
-    }
-    this.points.geometry.verticesNeedUpdate = true;
   }
   // return list of point indexes that should be affected by mouse
   // input is mouse in window coordinates
@@ -127,6 +122,16 @@ class Particles {
     return affectedVerts;
   }
 
+  affectVerts(verts, vel){
+    vel.divideScalar(this.velocityScale);
+    for (var i = 0; i < verts.length; ++i) {
+      this.points.geometry.vertices[verts[i]].x += vel.x;
+      this.points.geometry.vertices[verts[i]].y += vel.y;
+      this.points.geometry.vertices[verts[i]].z += vel.z;
+    }
+    this.points.geometry.verticesNeedUpdate = true;
+  }
+
 }
 
 // FUNCTIONS
@@ -134,17 +139,20 @@ function init() {
   // init camera
   camera = new THREE.PerspectiveCamera(FOV, ASPECT, NEAR, FAR);
   camera.position.z = 1;
-  // init controls
-  controls = new THREE.OrbitControls(camera);
-  controls.enableDamping = true;
-  controls.dampingFactor = .9;
   // init mouse velocity
   mouseVel = new MouseSpeed();
   mouseVel.init(handleVelocity); // assign callback
   // init scene
+  // testing
   scene = new THREE.Scene();
   var axesHelper = new THREE.AxesHelper( 5 );
   scene.add( axesHelper );
+  var m = new THREE.MeshBasicMaterial( {color: 0xffffff} );
+  raycaster = new THREE.Raycaster();
+  raycaster.params.Points.threshold = .02;
+  mousePos = new THREE.Vector2();
+  // cube = new THREE.Mesh( new THREE.BoxGeometry( .3, .3, .3 ), m );
+  // scene.add( cube );
   scene.background = new THREE.Color(0x333333);
   // init system
   loadModel("./data/bunnyLow.obj");
@@ -154,6 +162,10 @@ function init() {
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
   CONTAINER.appendChild(renderer.domElement);
+  // init controls
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = .9;
 }
 
 // given THREE.Mesh initialize system to its geometry
@@ -184,33 +196,52 @@ function loadModel(model) {
   );
 }
 
+function testingRay(mVec, mVel){
+  raycaster.setFromCamera( mVec, camera );
+  console.log(raycaster);
+	var intersects = raycaster.intersectObject(sys.points);
+  if ( intersects.length) {
+    var pos = sys.points.geometry.vertices[intersects[0].index];
+    var verts = sys.getAffectedPoints(pos);
+    sys.affectVerts(verts, mVel);
+  }
+
+}
+
+// given mouse screen coordinates as vector3 return mouse pos in XYZ
+function convertMouseToCamera(mVec){
+  var mPos = new THREE.Vector3(); // mouse position based on camera
+  var targetZ = 0; // what plane the mouse is in
+  mVec.unproject(camera); // de project point
+  mVec.sub(camera.position).normalize(); // get from origin
+  // get position under mouse on plane targetZ
+  var distance = (targetZ - camera.position.z) / mVec.z;
+  // put in projected space
+  mPos.copy(camera.position).add(mVec.multiplyScalar(distance));
+  return mPos;
+}
+
+// return vector3 that points direction of camera
+function getCamDir(){
+  var camDirection = new THREE.Vector3(); // camera's view
+  camera.getWorldDirection(camDirection);
+  return camDirection;
+}
+
 // call back function that is executed on change of mouse velocity
 function handleVelocity() {
   // var mVel = new THREE.Vector2(mouseVel.speedX, (-1) * mouseVel.speedY);
   var mVel = mouseVel.mVel;
 
-  var matrix = new THREE.Matrix4();
-  matrix.extractRotation( camera.matrix );
-  var camDirection = new THREE.Vector3( 0, 0, 1 );
-  camDirection.applyMatrix4( matrix ); // camera direction
-
-  //TODO
-  /*
-  need to convert so that the particle moves the same direction as the mouse no matter
-  where the camera is
-  maybe need direction of camera
-    */
-
-  // mVel.cross(direction);
-  // console.log(camDirection);
-  // do anything you want with speed values
-  // sys.movePoints(speedX, speedY);
-  // sys.animatePoints();
   if (event != null) {
-    var mVec = new THREE.Vector3((event.clientX / window.innerWidth) * 2 - 1,
-																	-(event.clientY / window.innerHeight) * 2 + 1,
-      														.5);
-    sys.testMouse(mVec, mVel);
+    var mVec = new THREE.Vector2((event.clientX / window.innerWidth) * 2 - 1,
+																	-(event.clientY / window.innerHeight) * 2 + 1);
+    // sys.testMouse(mVec, mVel);
+    // console.log("cam = " );
+    // console.log(camera.quaternion);
+    // console.log("cube = " );
+    // console.log(cube.quaternion);
+    testingRay(mVec, mVel);
   }
 }
 
