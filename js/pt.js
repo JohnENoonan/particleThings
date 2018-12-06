@@ -47,6 +47,7 @@ class Particles {
     this.spriteScale = .01; // scale of the sprite
     this.velocityScale = 1000.0; // divisor factor for velocity
     this.mouseRad = .001; // represented as squared distance
+    this.forceSpeed = .001; // speed points are attracted/repelled
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -110,8 +111,6 @@ class Particles {
   // return list of point indexes that should be affected by mouse
   // input is mouse in window coordinates
   getAffectedPoints(mPos) {
-
-    // console.log(mPos);
     var affectedVerts = []; // list of verts that are within region
     for (var i = 0; i < this.points.geometry.vertices.length; ++i) {
       var vert = this.points.geometry.vertices[i];
@@ -122,12 +121,30 @@ class Particles {
     return affectedVerts;
   }
 
-  affectVerts(verts, vel){
-    vel.divideScalar(this.velocityScale);
+  // edit vertices with indexs in list and add velocity
+  mouseDragPoints(verts, vel, mVec){
+    vel.divideScalar(this.velocityScale); // scale velocity
+    // get unit circle position of camera
+    var camPos = new THREE.Vector3().copy(camera.position).normalize();
+    // angle between x and z
+    var angle = Math.atan2(camPos.x, camPos.z);
     for (var i = 0; i < verts.length; ++i) {
-      this.points.geometry.vertices[verts[i]].x += vel.x;
+      // apply velocity components
+      this.points.geometry.vertices[verts[i]].x += vel.x * Math.cos(angle);
       this.points.geometry.vertices[verts[i]].y += vel.y;
-      this.points.geometry.vertices[verts[i]].z += vel.z;
+      this.points.geometry.vertices[verts[i]].z += -vel.x * Math.sin(angle);
+    }
+    this.points.geometry.verticesNeedUpdate = true;
+  }
+
+  // TODO test this
+  attractPoints(verts, center){
+    for (var i = 0; i < verts.length; ++i) {
+      var vert = this.points.geometry.vertices[verts[i]];
+      if (!center.distanceToSquared(vert) < .001){
+        var diff = THREE.Vector3().subVectors(center, vert);
+        vert += diff*this.forceSpeed;
+      }
     }
     this.points.geometry.verticesNeedUpdate = true;
   }
@@ -155,7 +172,7 @@ function init() {
   // scene.add( cube );
   scene.background = new THREE.Color(0x333333);
   // init system
-  loadModel("./data/bunnyLow.obj");
+  loadModel("./data/bunny.obj");
   // init renderer
   renderer = new THREE.WebGLRenderer({
     antialias: true
@@ -197,22 +214,22 @@ function loadModel(model) {
   );
 }
 
+// testing ray picking functionality
 function testingRay(mVec, mVel){
   raycaster.setFromCamera( mVec, camera );
 	var intersects = raycaster.intersectObject(sys.points);
   if ( intersects.length) {
     var pos = sys.points.geometry.vertices[intersects[0].index];
     var verts = sys.getAffectedPoints(pos);
-    sys.affectVerts(verts, mVel);
+    sys.mouseDragPoints(verts, mVel, mVec);
   }
-
 }
 
 // given mouse screen coordinates as vector3 return mouse pos in XYZ
 function convertMouseToCamera(mVec){
   var mPos = new THREE.Vector3(); // mouse position based on camera
   var targetZ = 0; // what plane the mouse is in
-  mVec.unproject(camera); // de project point
+  mVec.unproject(camera); // de-project point
   mVec.sub(camera.position).normalize(); // get from origin
   // get position under mouse on plane targetZ
   var distance = (targetZ - camera.position.z) / mVec.z;
@@ -236,11 +253,6 @@ function handleVelocity() {
   if (event != null) {
     var mVec = new THREE.Vector2((event.clientX / window.innerWidth) * 2 - 1,
 																	-(event.clientY / window.innerHeight) * 2 + 1);
-    // sys.testMouse(mVec, mVel);
-    // console.log("cam = " );
-    // console.log(camera.quaternion);
-    // console.log("cube = " );
-    // console.log(cube.quaternion);
     testingRay(mVec, mVel);
   }
 }
