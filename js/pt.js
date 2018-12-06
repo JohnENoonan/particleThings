@@ -166,6 +166,7 @@ function init() {
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = .9;
+  controls.enablePan = false;
 }
 
 // given THREE.Mesh initialize system to its geometry
@@ -198,7 +199,6 @@ function loadModel(model) {
 
 function testingRay(mVec, mVel){
   raycaster.setFromCamera( mVec, camera );
-  console.log(raycaster);
 	var intersects = raycaster.intersectObject(sys.points);
   if ( intersects.length) {
     var pos = sys.points.geometry.vertices[intersects[0].index];
