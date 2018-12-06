@@ -33,8 +33,14 @@ var mouseVel; // MouseSpeed object used to get mouse velocity
 var raycaster; // raycaster object used to pick
 var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
 var camera, scene, renderer, controls; // THREE vars
-
-
+//Gui Parameters
+var Parameters = function() {
+  this.message = 'dat.gui';
+  this.color = "#ff0000";
+  this.geoscale = 1.0;
+  this.spritescale = 1.0;
+  this.mouseradius = .01;
+};
 
 // Particle system object that stores particles as THREE.PointsMaterial
 class Particles {
@@ -325,6 +331,17 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+
+  //gui load
+  window.onload = function() {
+    var text = new Parameters();
+    var gui = new dat.GUI();
+    gui.add(text, 'message');
+    gui.addColor( text, "color");
+    gui.add(text, 'geoscale', .01, 5);
+    gui.add(text, 'spritescale', .01, 5);
+    gui.add(text, 'mouseradius', 0, 2);
+  };
 
 // EXECUTION
 init();
