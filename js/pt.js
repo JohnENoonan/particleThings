@@ -178,7 +178,7 @@ class Particles {
         this.returnToRest(i);
       }
       this.points.geometry.verticesNeedUpdate = true;
-    }    
+    }
   }
 }
 
