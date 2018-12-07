@@ -32,7 +32,7 @@ var sys; // particle system object
 var mouseVel; // MouseSpeed object used to get mouse velocity
 var raycaster; // raycaster object used to pick
 var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
-var camera, scene, renderer, controls; // THREE vars
+var camera, scene, renderer, controls, stats; // THREE vars
 //Gui Parameters
 var Parameters = function() {
   this.message = 'dat.gui';
@@ -48,7 +48,7 @@ class Particles {
   constructor(geo) {
     // view variables
     this.texture = new THREE.TextureLoader().load('./data/disc.png');
-    this.color = "white" // color of particles
+    this.color = 0xffffff; // color of particles
     this.geoScale = 1; // uniform scale used on geo
     this.spriteScale = .01; // scale of the sprite
 
@@ -73,7 +73,8 @@ class Particles {
     material.alphaTest = 0.5; // allows for alpha in sprite to not be rendered
     // set this.points object that has particles
     this.points = new THREE.Points(geo, material);
-    this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
+    // this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
+    this.points.scale.set(this.geoScale,this.geoScale,this.geoScale);
     this.points.name = "points object";
     this.points.geometry.name = "geo object";
     this.restP = deepCopy(this.points.geometry.vertices);
@@ -214,6 +215,10 @@ function init() {
   renderer = new THREE.WebGLRenderer({
     antialias: true
   });
+  // init perfomrance stats
+  stats = new Stats();
+  stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+  document.body.appendChild( stats.dom );
   renderer.setSize(window.innerWidth, window.innerHeight);
   CONTAINER.appendChild(renderer.domElement);
   // init camera controls
@@ -231,6 +236,7 @@ function initSystem(object, child = 0) {
   var geo = new THREE.Geometry().fromBufferGeometry(object.children[child].geometry);
   sys = new Particles(geo);
   scene.add(sys.points);
+  console.log(sys);
 }
 
 // helper function to load a modle given its url path
@@ -323,13 +329,14 @@ function handleVelocity() {
 
 // animated render loop
 function animate() {
-  requestAnimationFrame(animate);
+  stats.begin();
   controls.update();
   if (sys){
     sys.update();
   }
-
   renderer.render(scene, camera);
+  stats.end();
+  requestAnimationFrame(animate);
 }
 
   //gui load
