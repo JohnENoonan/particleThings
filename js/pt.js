@@ -33,13 +33,26 @@ var mouseVel; // MouseSpeed object used to get mouse velocity
 var raycaster; // raycaster object used to pick
 var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
 var camera, scene, renderer, controls; // THREE vars
+
+
+var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale, particleScale, mouseScale, velScale, particalVel, returnVel;
 //Gui Parameters
 var Parameters = function() {
   this.message = 'dat.gui';
-  this.color = "#ff0000";
+  this.color = "#ffffff";
   this.geoscale = 1.0;
-  this.spritescale = 1.0;
-  this.mouseradius = .01;
+  this.spritescale = .01;
+  this.mouseradius = .001;
+
+  // movement variables
+  this.velocityScale = 1000.0; // divisor factor for velocity
+  this.forceSpeed = .01; // speed points are attracted/repelled
+  this.returnSpeed = .01; // speed that the points use to return to original pos
+
+  this.attract = false; // whether to have mouse attracttion on
+  this.repel = false; // whether to have mouse repel on
+  this.mouseDrag = true; // whether to have mouse dragging on
+  this.returns = true;
 };
 
 // Particle system object that stores particles as THREE.PointsMaterial
@@ -48,7 +61,7 @@ class Particles {
   constructor(geo) {
     // view variables
     this.texture = new THREE.TextureLoader().load('./data/disc.png');
-    this.color = "white" // color of particles
+    this.color = 0xffffff // color of particles
     this.geoScale = 1; // uniform scale used on geo
     this.spriteScale = .01; // scale of the sprite
 
@@ -167,7 +180,9 @@ class Particles {
 
   // render loop update called each frame
   update(){
+    console
     if (this.attract){
+      // console.log(this.attract);
       var mPosRay = getMouseFromRay(); // position of mouse from intersect
       if (mPosRay != null){
         this.attractPoints(this.getAffectedPoints(mPosRay), mPosRay);
@@ -223,7 +238,34 @@ function init() {
   controls.enablePan = false;
   controls.maxPolarAngle = 2;
   controls.minPolarAngle = .8;
+
+
+    text = new Parameters();
+    gui = new dat.GUI();
+    gui.add(text, 'message');
+    curColor = gui.addColor( text, "color");
+    modelScale = gui.add(text, 'geoscale', .01, 3);
+    particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
+    mouseScale = gui.add(text, 'mouseradius', 0, .01);
+
+    folder1 = gui.addFolder('Movement Variabels');
+    velScale = folder1.add(text, 'velocityScale').min(500).max(10000).step(100);
+    particalVel = folder1.add(text, 'forceSpeed').min(.001).max(.05).step(.001);
+    returnVel =folder1.add(text, 'returnSpeed').min(.001).max(.05).step(.001);
+
+    folder2 = gui.addFolder('Flags');
+    attactFlag = folder2.add(text, 'attract').listen();
+    repelFlag = folder2.add(text, 'repel').listen();
+    mouseFlag = folder2.add(text, 'mouseDrag');
+    returnsFlag = folder2.add(text, 'returns');
+    
+
 }
+
+    // movement variables
+    this.velocityScale = 1000.0; // divisor factor for velocity
+    this.forceSpeed = .01; // speed points are attracted/repelled
+    this.returnSpeed = .01; // speed that the points use to return to original pos
 
 // given THREE.Mesh initialize system to its geometry
 function initSystem(object, child = 0) {
@@ -231,6 +273,50 @@ function initSystem(object, child = 0) {
   var geo = new THREE.Geometry().fromBufferGeometry(object.children[child].geometry);
   sys = new Particles(geo);
   scene.add(sys.points);
+  attactFlag.onChange(function(value) 
+    {   sys.attract = text.attract;
+      if(sys.repel == true && sys.attract == true){
+        sys.repel = false;
+        text.repel = false;
+        gui.repel = false;
+      }});
+  repelFlag.onChange(function(value) 
+    {   sys.repel = text.repel;
+      if(sys.attract == true && sys.repel == true){
+        sys.attract = false;
+        text.attract = false;
+        gui.attract = false;
+      }});
+  mouseFlag.onChange(function(value) 
+  {   sys.mouseDrag = text.mouseDrag;});
+  returnsFlag.onChange(function(value) 
+  {   sys.returns = text.returns;});
+    mouseScale.onChange(function(value) 
+  {   sys.mouseRad = text.mouseradius;});
+
+    velScale.onChange(function(value) 
+  {   console.log(sys);
+    sys.velocityScale = text.velocityScale;});
+
+    particalVel.onChange(function(value) 
+  {   sys.forceSpeed = text.forceSpeed;});
+
+    returnVel.onChange(function(value) 
+  {   sys.returnSpeed = text.returnSpeed;});
+
+  curColor.onChange(function(value) 
+  {   
+    sys.color = new THREE.Color(parseInt(value.replace("#", "0x"), 16));
+    sys.points.material.color.set(sys.color);
+   });
+  modelScale.onChange(function(value) 
+  {   sys.geoscale = text.geoscale;
+
+    sys.points.scale.set(sys.geoscale,sys.geoscale,sys.geoscale);});
+
+  particleScale.onChange(function(value) 
+  {   sys.spritescale = text.spritescale;
+    sys.points.material.size = sys.spritescale});
 }
 
 // helper function to load a modle given its url path
@@ -333,15 +419,9 @@ function animate() {
 }
 
   //gui load
-  window.onload = function() {
-    var text = new Parameters();
-    var gui = new dat.GUI();
-    gui.add(text, 'message');
-    gui.addColor( text, "color");
-    gui.add(text, 'geoscale', .01, 5);
-    gui.add(text, 'spritescale', .01, 5);
-    gui.add(text, 'mouseradius', 0, 2);
-  };
+  //window.onload = function() {
+
+  //};
 
 // EXECUTION
 init();
