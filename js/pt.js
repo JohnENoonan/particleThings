@@ -12,13 +12,6 @@
 // https://stemkoski.github.io/Three.js/GUI-Controller.html
 // https://www.youtube.com/watch?v=HtF2qWKM_go
 
-//TODO:
-/*
-	update rest on scale
-  set all fields based on gui from constructor
-
-*/
-
 // CONSTANTS
 var ASPECT = window.innerWidth / window.innerHeight;
 var FOV = 80;
@@ -355,6 +348,7 @@ function initSystem(object, child = 0) {
   // set goemetry scale
   modelScale.onChange(function(value) {
     sys.geoscale = text.geoscale;
+    sys.restP = deepCopy(sys.points.geometry.vertices);
     sys.points.scale.set(sys.geoscale, sys.geoscale, sys.geoscale);
   });
 
