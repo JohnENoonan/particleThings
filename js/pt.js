@@ -259,7 +259,7 @@ function init() {
     text = new Parameters();
     gui = new dat.GUI();
     curColor = gui.addColor( text, "color");
-    texture = gui.add( text, 'particle', [ "Spheres", "Stars", "Donuts", "Franklin", "Bubble", "Triangles", "Unity" ] );
+    texture = gui.add( text, 'particle', [ "disc", "stars", "donut", "prof", "bubble", "triangle", "unity" ] );
     modelScale = gui.add(text, 'geoscale', .01, 3);
     particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
     mouseScale = gui.add(text, 'mouseradius', 0, .01);
@@ -319,6 +319,12 @@ function initSystem(object, child = 0) {
 
     returnVel.onChange(function(value)
   {   sys.returnSpeed = text.returnSpeed;});
+
+  texture.onChange(function(value)
+  {   sys.texture = new THREE.TextureLoader().load('./data/' + value + '.png');
+    console.log(sys.points.material);
+    sys.points.material.map = sys.texture;
+    sys.points.material.needsUpdate = true;});
 
   curColor.onChange(function(value)
   {
