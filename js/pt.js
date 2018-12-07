@@ -259,7 +259,7 @@ function init() {
     text = new Parameters();
     gui = new dat.GUI();
     curColor = gui.addColor( text, "color");
-    texture = gui.add( text, 'particle', [ "disc", "stars", "donut", "prof", "bubble", "triangle", "unity" ] );
+    texture = gui.add( text, 'particle', [ "disc", "stars", "donut", "prof", "bubble", "triangle", "unity", "gimble" ] );
     modelScale = gui.add(text, 'geoscale', .01, 3);
     particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
     mouseScale = gui.add(text, 'mouseradius', 0, .01);
