@@ -35,12 +35,14 @@ var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
 var camera, scene, renderer, controls; // THREE vars
 
 
-var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale, particleScale, mouseScale, velScale, particalVel, returnVel;
+var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor,
+    modelScale, particleScale, mouseScale, velScale, particalVel, returnVel, modelChosen;
 //Gui Parameters
 var Parameters = function() {
   this.color = "#ffffff";
   this.geoscale = 1.0;
   this.spritescale = .01;
+  this.model = "bunny";
   this.mouseradius = .001;
 
   // movement variables
@@ -249,6 +251,7 @@ function init() {
     curColor = gui.addColor( text, "color");
     modelScale = gui.add(text, 'geoscale', .01, 3);
     particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
+    modelChosen = gui.add(text, 'model', [ 'bunny', 'bunnyLow', 'teapot', 'woman', 'castle', 'pointField' ] );
     mouseScale = gui.add(text, 'mouseradius', 0, .01);
 
     folder1 = gui.addFolder('Movement Variabels');
@@ -257,7 +260,7 @@ function init() {
     returnVel =folder1.add(text, 'returnSpeed').min(.001).max(.05).step(.001);
 
     folder2 = gui.addFolder('Flags');
-    attactFlag = folder2.add(text, 'attract').listen();
+    attractFlag = folder2.add(text, 'attract').listen();
     repelFlag = folder2.add(text, 'repel').listen();
     mouseFlag = folder2.add(text, 'mouseDrag');
     returnsFlag = folder2.add(text, 'returns');
@@ -276,7 +279,7 @@ function initSystem(object, child = 0) {
   var geo = new THREE.Geometry().fromBufferGeometry(object.children[child].geometry);
   sys = new Particles(geo);
   scene.add(sys.points);
-  attactFlag.onChange(function(value)
+  attractFlag.onChange(function(value)
     {   sys.attract = text.attract;
       if(sys.repel == true && sys.attract == true){
         sys.repel = false;
@@ -297,6 +300,14 @@ function initSystem(object, child = 0) {
     mouseScale.onChange(function(value)
   {   sys.mouseRad = text.mouseradius;});
 
+  modelChosen.onChange(function(value){
+    var model = "./data/" + value + ".obj";
+    console.log(model);
+    scene.remove(sys.points);
+    sys = null;
+    loadModel(model);
+  });
+
     velScale.onChange(function(value)
   {   console.log(sys);
     sys.velocityScale = text.velocityScale;});
@@ -312,6 +323,7 @@ function initSystem(object, child = 0) {
     sys.color = new THREE.Color(parseInt(value.replace("#", "0x"), 16));
     sys.points.material.color.set(sys.color);
    });
+
   modelScale.onChange(function(value)
   {   sys.geoscale = text.geoscale;
 
