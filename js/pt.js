@@ -10,7 +10,7 @@
 // https://tympanus.net/Development/3d-particle-explorations/index8.html
 // ui is http://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage
 // https://stemkoski.github.io/Three.js/GUI-Controller.html
-
+// https://www.youtube.com/watch?v=HtF2qWKM_go
 
 //TODO:
 /*
@@ -53,6 +53,8 @@ var Parameters = function() {
   this.mouseDrag = true; // whether to have mouse dragging on
   this.returns = true;
 };
+
+
 
 // Particle system object that stores particles as THREE.PointsMaterial
 class Particles {
@@ -163,6 +165,11 @@ class Particles {
     this.repelPoints(ran,center);
   }
 
+  // // interpolate given vert w/ noise field
+  // noiseMove(vert){
+  //
+  // }
+
   // have point at index animate towards going back to rest position
   returnToRest(ind){
     var vert = this.points.geometry.vertices[ind];
@@ -207,16 +214,19 @@ class Particles {
 function init() {
   // init camera
   camera = new THREE.PerspectiveCamera(FOV, ASPECT, NEAR, FAR);
-  camera.position.z = 1;
+  //set default cam angle
+  camera.position.x = -0.08833024401844962;
+  camera.position.y = 0.2913072428616853;
+  camera.position.z = 0.2866399709945558;
   // init mouse velocity
   mouseVel = new MouseSpeed();
   mouseVel.init(handleVelocity); // assign callback
   // init scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x333333);
+  scene.background = new THREE.Color(0x80dfff); //colored a la brionne blue
   // testing
-  var axesHelper = new THREE.AxesHelper( 5 );
-  scene.add( axesHelper );
+  // var axesHelper = new THREE.AxesHelper( 5 );
+  // scene.add( axesHelper );
   var m = new THREE.MeshBasicMaterial( {color: 0xffffff} );
   // init raycaster for picking
   //TODO need to make threshold = point size or so
@@ -261,7 +271,6 @@ function init() {
     repelFlag = folder2.add(text, 'repel').listen();
     mouseFlag = folder2.add(text, 'mouseDrag');
     returnsFlag = folder2.add(text, 'returns');
-
 
 }
 
@@ -409,6 +418,13 @@ function handleVelocity() {
     }
   }
 }
+
+// init field function - call in init
+// function initField() {
+//
+//
+//
+// }
 
 // animated render loop
 function animate() {
