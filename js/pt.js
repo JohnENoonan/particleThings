@@ -10,7 +10,7 @@
 // https://tympanus.net/Development/3d-particle-explorations/index8.html
 // ui is http://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage
 // https://stemkoski.github.io/Three.js/GUI-Controller.html
-
+// https://www.youtube.com/watch?v=HtF2qWKM_go
 
 //TODO:
 /*
@@ -24,7 +24,7 @@
 var ASPECT = window.innerWidth / window.innerHeight;
 var FOV = 80;
 var NEAR = 0.01;
-var FAR = 1000;
+var FAR = 4000;
 var CONTAINER = document.querySelector('#container'); // html dom container
 
 // GLOBALS
@@ -35,8 +35,8 @@ var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
 var camera, scene, renderer, controls; // THREE vars
 
 
-var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor,
-    modelScale, particleScale, mouseScale, velScale, particalVel, returnVel, modelChosen;
+var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale,
+particleScale, mouseScale, velScale, particalVel, returnVel, texture, modelChosen;
 //Gui Parameters
 var Parameters = function() {
   this.color = "#ffffff";
@@ -44,6 +44,7 @@ var Parameters = function() {
   this.spritescale = .01;
   this.model = "bunny";
   this.mouseradius = .001;
+  this.particle = "Spheres";
 
   // movement variables
   this.velocityScale = 1000.0; // divisor factor for velocity
@@ -55,6 +56,8 @@ var Parameters = function() {
   this.mouseDrag = true; // whether to have mouse dragging on
   this.returns = true;
 };
+
+
 
 // Particle system object that stores particles as THREE.PointsMaterial
 class Particles {
@@ -165,6 +168,11 @@ class Particles {
     this.repelPoints(ran,center);
   }
 
+  // // interpolate given vert w/ noise field
+  // noiseMove(vert){
+  //
+  // }
+
   // have point at index animate towards going back to rest position
   returnToRest(ind){
     var vert = this.points.geometry.vertices[ind];
@@ -209,16 +217,19 @@ class Particles {
 function init() {
   // init camera
   camera = new THREE.PerspectiveCamera(FOV, ASPECT, NEAR, FAR);
-  camera.position.z = 1;
+  //set default cam angle
+  camera.position.x = -0.08833024401844962;
+  camera.position.y = 0.2913072428616853;
+  camera.position.z = 0.2866399709945558;
   // init mouse velocity
   mouseVel = new MouseSpeed();
   mouseVel.init(handleVelocity); // assign callback
   // init scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x333333);
+  scene.background = new THREE.Color(0x80dfff); //colored a la brionne blue
   // testing
-  var axesHelper = new THREE.AxesHelper( 5 );
-  scene.add( axesHelper );
+  // var axesHelper = new THREE.AxesHelper( 5 );
+  // scene.add( axesHelper );
   var m = new THREE.MeshBasicMaterial( {color: 0xffffff} );
   // init raycaster for picking
   //TODO need to make threshold = point size or so
@@ -249,10 +260,12 @@ function init() {
     text = new Parameters();
     gui = new dat.GUI();
     curColor = gui.addColor( text, "color");
+    texture = gui.add( text, 'particle', [ "disc", "stars", "donut", "prof", "bubble", "triangle", "unity", "gimble" ] );
     modelScale = gui.add(text, 'geoscale', .01, 3);
     particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
     modelChosen = gui.add(text, 'model', [ 'bunny', 'bunnyLow', 'teapot', 'woman', 'castle', 'pointField' ] );
     mouseScale = gui.add(text, 'mouseradius', 0, .01);
+
 
     folder1 = gui.addFolder('Movement Variabels');
     velScale = folder1.add(text, 'velocityScale').min(500).max(10000).step(100);
@@ -264,7 +277,6 @@ function init() {
     repelFlag = folder2.add(text, 'repel').listen();
     mouseFlag = folder2.add(text, 'mouseDrag');
     returnsFlag = folder2.add(text, 'returns');
-
 
 }
 
@@ -317,6 +329,12 @@ function initSystem(object, child = 0) {
 
     returnVel.onChange(function(value)
   {   sys.returnSpeed = text.returnSpeed;});
+
+  texture.onChange(function(value)
+  {   sys.texture = new THREE.TextureLoader().load('./data/' + value + '.png');
+    console.log(sys.points.material);
+    sys.points.material.map = sys.texture;
+    sys.points.material.needsUpdate = true;});
 
   curColor.onChange(function(value)
   {
@@ -421,6 +439,13 @@ function handleVelocity() {
     }
   }
 }
+
+// init field function - call in init
+// function initField() {
+//
+//
+//
+// }
 
 // animated render loop
 function animate() {
