@@ -14,9 +14,8 @@
 
 //TODO:
 /*
-	create noise field to add to effects
-
-	UI stuff
+	update rest on scale
+  set all fields based on gui from constructor
 
 */
 
@@ -34,9 +33,10 @@ var raycaster; // raycaster object used to pick
 var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
 var camera, scene, renderer, controls; // THREE vars
 
-
-var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale,
-particleScale, mouseScale, velScale, particalVel, returnVel, texture, modelChosen;
+// gui elements
+var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor,
+    modelScale, particleScale, mouseScale, velScale, particalVel, returnVel,
+    texture, modelChosen;
 //Gui Parameters
 var Parameters = function() {
   this.color = "#ffffff";
@@ -44,42 +44,40 @@ var Parameters = function() {
   this.spritescale = .01;
   this.model = "bunny";
   this.mouseradius = .001;
-  this.particle = "Spheres";
-
+  this.particle = "disc";
   // movement variables
   this.velocityScale = 1000.0; // divisor factor for velocity
   this.forceSpeed = .01; // speed points are attracted/repelled
   this.returnSpeed = .01; // speed that the points use to return to original pos
-
   this.attract = false; // whether to have mouse attracttion on
   this.repel = false; // whether to have mouse repel on
   this.mouseDrag = true; // whether to have mouse dragging on
-  this.returns = true;
+  this.returns = true; // whether to have particles go to rest position
 };
 
 
-
 // Particle system object that stores particles as THREE.PointsMaterial
+// animation on points is done in here
 class Particles {
   // takes source geometry as THREE.Geometry.
   constructor(geo) {
     // view variables
-    this.texture = new THREE.TextureLoader().load('./data/disc.png');
-    this.color = 0xffffff; // color of particles
-    this.geoScale = 1; // uniform scale used on geo
-    this.spriteScale = .01; // scale of the sprite
+    this.texture = new THREE.TextureLoader().load('./data/' + text.particle + '.png');
+    this.color = text.color; // color of particles
+    this.geoScale = text.geoscale; // uniform scale used on geo
+    this.spriteScale = text.spritescale; // scale of the sprite
 
     // movement variables
-    this.velocityScale = 1000.0; // divisor factor for velocity
-    this.mouseRad = .001; // represented as squared distance
-    this.forceSpeed = .01; // speed points are attracted/repelled
-    this.returnSpeed = .01; // speed that the points use to return to original pos
+    this.velocityScale = text.velocityScale; // divisor factor for velocity
+    this.mouseRad = text.mouseradius; // represented as squared distance
+    this.forceSpeed = text.forceSpeed; // speed points are attracted/repelled
+    this.returnSpeed = text.returnSpeed; // speed that the points use to return to original pos
 
     // flags
-    this.attract = false; // whether to have mouse attracttion on
-    this.repel = false; // whether to have mouse repel on
-    this.mouseDrag = true; // whether to have mouse dragging on
-    this.returns = true;
+    this.attract = text.attract; // whether to have mouse attracttion on
+    this.repel = text.repel; // whether to have mouse repel on
+    this.mouseDrag = text.mouseDrag; // whether to have mouse dragging on
+    this.returns = text.returns;
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -91,7 +89,7 @@ class Particles {
     // set this.points object that has particles
     this.points = new THREE.Points(geo, material);
     // this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
-    this.points.scale.set(this.geoScale,this.geoScale,this.geoScale);
+    this.points.scale.set(this.geoScale, this.geoScale, this.geoScale);
     this.points.name = "points object";
     this.points.geometry.name = "geo object";
     this.restP = deepCopy(this.points.geometry.vertices);
@@ -123,7 +121,7 @@ class Particles {
   }
 
   // edit vertices with indexs in list by adding mouse velocity
-  mouseDragPoints(verts, vel, mVec){
+  mouseDragPoints(verts, vel, mVec) {
     vel.divideScalar(this.velocityScale); // scale velocity
     // get unit circle position of camera
     var camPos = new THREE.Vector3().copy(camera.position).normalize();
@@ -139,11 +137,11 @@ class Particles {
   }
 
   // pull points from verts to center using forceSpeed
-  attractPoints(verts, center){
+  attractPoints(verts, center) {
     for (var i = 0; i < verts.length; ++i) {
       var vert = this.points.geometry.vertices[verts[i]];
       // make sure not to move point if it is "on" center
-      if (!vert.distanceToSquared(center) < .01){
+      if (!vert.distanceToSquared(center) < .01) {
         var diff = new THREE.Vector3().subVectors(center, vert);
         vert.add(diff.multiplyScalar(this.forceSpeed));
       }
@@ -152,7 +150,7 @@ class Particles {
   }
 
   // push points from verts away from center using forceSpeed
-  repelPoints(verts, center){
+  repelPoints(verts, center) {
     for (var i = 0; i < verts.length; ++i) {
       var vert = this.points.geometry.vertices[verts[i]];
       var diff = new THREE.Vector3().subVectors(vert, center);
@@ -162,10 +160,10 @@ class Particles {
   }
 
   // send all points out from center
-  blowupPoints(){
+  blowupPoints() {
     var center = this.points.geometry.boundingSphere.center;
-    var ran = range(0,this.points.geometry.vertices.length);
-    this.repelPoints(ran,center);
+    var ran = range(0, this.points.geometry.vertices.length);
+    this.repelPoints(ran, center);
   }
 
   // // interpolate given vert w/ noise field
@@ -174,14 +172,14 @@ class Particles {
   // }
 
   // have point at index animate towards going back to rest position
-  returnToRest(ind){
+  returnToRest(ind) {
     var vert = this.points.geometry.vertices[ind];
     var dist = vert.distanceToSquared(this.restP[ind]);
     // if points aren't in the same place
-    if (!dist < .01){
+    if (!dist < .01) {
       var diff = new THREE.Vector3().subVectors(this.restP[ind], vert);
       var speed = this.returnSpeed;
-      if (dist < 1){
+      if (dist < 1) {
         speed *= 2;
       }
       vert.add(diff.multiplyScalar(speed));
@@ -189,23 +187,22 @@ class Particles {
   }
 
   // render loop update called each frame
-  update(){
+  update() {
     console
-    if (this.attract){
+    if (this.attract) {
       // console.log(this.attract);
       var mPosRay = getMouseFromRay(); // position of mouse from intersect
-      if (mPosRay != null){
+      if (mPosRay != null) {
         this.attractPoints(this.getAffectedPoints(mPosRay), mPosRay);
       }
-    }
-    else if (this.repel){
+    } else if (this.repel) {
       var mPosRay = getMouseFromRay(); // position of mouse from intersect
-      if (mPosRay != null){
+      if (mPosRay != null) {
         this.repelPoints(this.getAffectedPoints(mPosRay), mPosRay);
       }
     }
-    if (this.returns){
-      for (var i = 0; i < this.restP.length;++i){
+    if (this.returns) {
+      for (var i = 0; i < this.restP.length; ++i) {
         this.returnToRest(i);
       }
       this.points.geometry.verticesNeedUpdate = true;
@@ -230,7 +227,9 @@ function init() {
   // testing
   // var axesHelper = new THREE.AxesHelper( 5 );
   // scene.add( axesHelper );
-  var m = new THREE.MeshBasicMaterial( {color: 0xffffff} );
+  var m = new THREE.MeshBasicMaterial({
+    color: 0xffffff
+  });
   // init raycaster for picking
   //TODO need to make threshold = point size or so
   raycaster = new THREE.Raycaster();
@@ -244,8 +243,8 @@ function init() {
   });
   // init perfomrance stats
   stats = new Stats();
-  stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
-  document.body.appendChild( stats.dom );
+  stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+  document.body.appendChild(stats.dom);
   renderer.setSize(window.innerWidth, window.innerHeight);
   CONTAINER.appendChild(renderer.domElement);
   // init camera controls
@@ -257,33 +256,33 @@ function init() {
   controls.minPolarAngle = .8;
 
 
-    text = new Parameters();
-    gui = new dat.GUI();
-    curColor = gui.addColor( text, "color");
-    texture = gui.add( text, 'particle', [ "disc", "stars", "donut", "prof", "bubble", "triangle", "unity", "gimble" ] );
-    modelScale = gui.add(text, 'geoscale', .01, 3);
-    particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
-    modelChosen = gui.add(text, 'model', [ 'bunny', 'bunnyLow', 'teapot', 'woman', 'castle', 'pointField' ] );
-    mouseScale = gui.add(text, 'mouseradius', 0, .01);
+  text = new Parameters();
+  gui = new dat.GUI();
+  curColor = gui.addColor(text, "color");
+  texture = gui.add(text, 'particle', ["disc", "stars", "donut", "prof", "bubble", "triangle", "unity", "gimble"]);
+  modelScale = gui.add(text, 'geoscale', .01, 3);
+  particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
+  modelChosen = gui.add(text, 'model', ['bunny', 'bunnyLow', 'teapot', 'woman', 'castle', 'pointField']);
+  mouseScale = gui.add(text, 'mouseradius', 0, .01);
 
 
-    folder1 = gui.addFolder('Movement Variabels');
-    velScale = folder1.add(text, 'velocityScale').min(500).max(10000).step(100);
-    particalVel = folder1.add(text, 'forceSpeed').min(.001).max(.05).step(.001);
-    returnVel =folder1.add(text, 'returnSpeed').min(.001).max(.05).step(.001);
+  folder1 = gui.addFolder('Movement Variabels');
+  velScale = folder1.add(text, 'velocityScale').min(500).max(10000).step(100);
+  particalVel = folder1.add(text, 'forceSpeed').min(.001).max(.05).step(.001);
+  returnVel = folder1.add(text, 'returnSpeed').min(.001).max(.05).step(.001);
 
-    folder2 = gui.addFolder('Flags');
-    attractFlag = folder2.add(text, 'attract').listen();
-    repelFlag = folder2.add(text, 'repel').listen();
-    mouseFlag = folder2.add(text, 'mouseDrag');
-    returnsFlag = folder2.add(text, 'returns');
+  folder2 = gui.addFolder('Flags');
+  attractFlag = folder2.add(text, 'attract').listen();
+  repelFlag = folder2.add(text, 'repel').listen();
+  mouseFlag = folder2.add(text, 'mouseDrag');
+  returnsFlag = folder2.add(text, 'returns');
 
 }
 
-    // movement variables
-    this.velocityScale = 1000.0; // divisor factor for velocity
-    this.forceSpeed = .01; // speed points are attracted/repelled
-    this.returnSpeed = .01; // speed that the points use to return to original pos
+// movement variables
+this.velocityScale = 1000.0; // divisor factor for velocity
+this.forceSpeed = .01; // speed points are attracted/repelled
+this.returnSpeed = .01; // speed that the points use to return to original pos
 
 // given THREE.Mesh initialize system to its geometry
 function initSystem(object, child = 0) {
@@ -291,65 +290,78 @@ function initSystem(object, child = 0) {
   var geo = new THREE.Geometry().fromBufferGeometry(object.children[child].geometry);
   sys = new Particles(geo);
   scene.add(sys.points);
-  attractFlag.onChange(function(value)
-    {   sys.attract = text.attract;
-      if(sys.repel == true && sys.attract == true){
-        sys.repel = false;
-        text.repel = false;
-        gui.repel = false;
-      }});
-  repelFlag.onChange(function(value)
-    {   sys.repel = text.repel;
-      if(sys.attract == true && sys.repel == true){
-        sys.attract = false;
-        text.attract = false;
-        gui.attract = false;
-      }});
-  mouseFlag.onChange(function(value)
-  {   sys.mouseDrag = text.mouseDrag;});
-  returnsFlag.onChange(function(value)
-  {   sys.returns = text.returns;});
-    mouseScale.onChange(function(value)
-  {   sys.mouseRad = text.mouseradius;});
-
-  modelChosen.onChange(function(value){
+  // gui update methods
+  // toggle particle mouse attraction
+  attractFlag.onChange(function(value) {
+    sys.attract = text.attract;
+    if (sys.repel == true && sys.attract == true) {
+      sys.repel = false;
+      text.repel = false;
+      gui.repel = false;
+    }
+  });
+  // toggle particle mouse repel
+  repelFlag.onChange(function(value) {
+    sys.repel = text.repel;
+    if (sys.attract == true && sys.repel == true) {
+      sys.attract = false;
+      text.attract = false;
+      gui.attract = false;
+    }
+  });
+  // toggle mouse drag particles
+  mouseFlag.onChange(function(value) {
+    sys.mouseDrag = text.mouseDrag;
+  });
+  // toggle particles return to rest position
+  returnsFlag.onChange(function(value) {
+    sys.returns = text.returns;
+  });
+  // set effective mouse scale
+  mouseScale.onChange(function(value) {
+    sys.mouseRad = text.mouseradius;
+  });
+  // change the model
+  modelChosen.onChange(function(value) {
     var model = "./data/" + value + ".obj";
-    console.log(model);
     scene.remove(sys.points);
     sys = null;
-    loadModel(model);
+    loadModel(model); // create new instance of sys
   });
-
-    velScale.onChange(function(value)
-  {   console.log(sys);
-    sys.velocityScale = text.velocityScale;});
-
-    particalVel.onChange(function(value)
-  {   sys.forceSpeed = text.forceSpeed;});
-
-    returnVel.onChange(function(value)
-  {   sys.returnSpeed = text.returnSpeed;});
-
-  texture.onChange(function(value)
-  {   sys.texture = new THREE.TextureLoader().load('./data/' + value + '.png');
+  // set velocity scale
+  velScale.onChange(function(value) {
+    sys.velocityScale = text.velocityScale;
+  });
+  // set how strong the repulsion/attraction is
+  particalVel.onChange(function(value) {
+    sys.forceSpeed = text.forceSpeed;
+  });
+  // set how fast particels return to rest
+  returnVel.onChange(function(value) {
+    sys.returnSpeed = text.returnSpeed;
+  });
+  // set texture
+  texture.onChange(function(value) {
+    sys.texture = new THREE.TextureLoader().load('./data/' + value + '.png');
     console.log(value);
     sys.points.material.map = sys.texture;
-    sys.points.material.needsUpdate = true;});
-
-  curColor.onChange(function(value)
-  {
+    sys.points.material.needsUpdate = true;
+  });
+  // set sprite color
+  curColor.onChange(function(value) {
     sys.color = new THREE.Color(parseInt(value.replace("#", "0x"), 16));
     sys.points.material.color.set(sys.color);
-   });
+  });
+  // set goemetry scale
+  modelScale.onChange(function(value) {
+    sys.geoscale = text.geoscale;
+    sys.points.scale.set(sys.geoscale, sys.geoscale, sys.geoscale);
+  });
 
-  modelScale.onChange(function(value)
-  {   sys.geoscale = text.geoscale;
-
-    sys.points.scale.set(sys.geoscale,sys.geoscale,sys.geoscale);});
-
-  particleScale.onChange(function(value)
-  {   sys.spritescale = text.spritescale;
-    sys.points.material.size = sys.spritescale});
+  particleScale.onChange(function(value) {
+    sys.spritescale = text.spritescale;
+    sys.points.material.size = sys.spritescale
+  });
 }
 
 // helper function to load a modle given its url path
@@ -373,30 +385,29 @@ function loadModel(model) {
 }
 
 function deepCopy(o) {
-   var output, v, key;
-   output = Array.isArray(o) ? [] : {};
-   for (key in o) {
-       v = o[key];
-       output[key] = (typeof v === "object") ? deepCopy(v) : v;
-   }
-   return output;
+  var output, v, key;
+  output = Array.isArray(o) ? [] : {};
+  for (key in o) {
+    v = o[key];
+    output[key] = (typeof v === "object") ? deepCopy(v) : v;
+  }
+  return output;
 }
 
 // get position of mouse based on first thing it intersects
 // returns null if no intersects
-function getMouseFromRay(){
-  raycaster.setFromCamera( mouseScreen, camera );
-	var intersects = raycaster.intersectObject(sys.points);
-  if ( intersects.length) {
+function getMouseFromRay() {
+  raycaster.setFromCamera(mouseScreen, camera);
+  var intersects = raycaster.intersectObject(sys.points);
+  if (intersects.length) {
     return sys.points.geometry.vertices[intersects[0].index];;
-  }
-  else{
+  } else {
     return null;
   }
 }
 
 // given mouse screen coordinates as vector3 return mouse pos in XYZ
-function convertMouseToCamera(mVec){
+function convertMouseToCamera(mVec) {
   var mPos = new THREE.Vector3(); // mouse position based on camera
   var targetZ = 0; // what plane the mouse is in
   mVec.unproject(camera); // de-project point
@@ -409,7 +420,7 @@ function convertMouseToCamera(mVec){
 }
 
 // return vector3 that points direction of camera
-function getCamDir(){
+function getCamDir() {
   var camDirection = new THREE.Vector3(); // camera's view
   camera.getWorldDirection(camDirection);
   return camDirection;
@@ -417,7 +428,7 @@ function getCamDir(){
 
 // create list of range [start,...,end-1]
 function range(start, end) {
-    return (new Array(end - start)).fill(undefined).map((_, i) => i + start);
+  return (new Array(end - start)).fill(undefined).map((_, i) => i + start);
 }
 
 // call back function that is executed on change of mouse velocity
@@ -426,13 +437,12 @@ function handleVelocity() {
   var mVel = mouseVel.mVel;
   if (event != null) {
     // update mouse position
-    mouseScreen.set((event.clientX / window.innerWidth) * 2 - 1,
-										-(event.clientY / window.innerHeight) * 2 + 1);
+    mouseScreen.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
     // if mouse should drag points
-    if (sys.mouseDrag){
+    if (sys.mouseDrag) {
       // get mouse 3D position from intersect
       var mPos = getMouseFromRay();
-      if (mPos){
+      if (mPos) {
         var verts = sys.getAffectedPoints(mPos);
         sys.mouseDragPoints(verts, mVel, mPos);
       }
@@ -451,7 +461,7 @@ function handleVelocity() {
 function animate() {
   stats.begin();
   controls.update();
-  if (sys){
+  if (sys) {
     sys.update();
   }
   renderer.render(scene, camera);
@@ -459,10 +469,10 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-  //gui load
-  //window.onload = function() {
+//gui load
+//window.onload = function() {
 
-  //};
+//};
 
 // EXECUTION
 init();
