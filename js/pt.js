@@ -38,7 +38,6 @@ var camera, scene, renderer, controls; // THREE vars
 var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale, particleScale, mouseScale, velScale, particalVel, returnVel;
 //Gui Parameters
 var Parameters = function() {
-  this.message = 'dat.gui';
   this.color = "#ffffff";
   this.geoscale = 1.0;
   this.spritescale = .01;
@@ -247,7 +246,6 @@ function init() {
 
     text = new Parameters();
     gui = new dat.GUI();
-    gui.add(text, 'message');
     curColor = gui.addColor( text, "color");
     modelScale = gui.add(text, 'geoscale', .01, 3);
     particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
