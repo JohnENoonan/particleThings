@@ -332,7 +332,7 @@ function initSystem(object, child = 0) {
 
   texture.onChange(function(value)
   {   sys.texture = new THREE.TextureLoader().load('./data/' + value + '.png');
-    console.log(sys.points.material);
+    console.log(value);
     sys.points.material.map = sys.texture;
     sys.points.material.needsUpdate = true;});
 
