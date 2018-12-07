@@ -35,13 +35,15 @@ var mouseScreen = new THREE.Vector2(); // mouse position in device coordinates
 var camera, scene, renderer, controls; // THREE vars
 
 
-var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale, particleScale, mouseScale, velScale, particalVel, returnVel;
+var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor, modelScale, 
+particleScale, mouseScale, velScale, particalVel, returnVel, texture;
 //Gui Parameters
 var Parameters = function() {
   this.color = "#ffffff";
   this.geoscale = 1.0;
   this.spritescale = .01;
   this.mouseradius = .001;
+  this.particle = "Spheres";
 
   // movement variables
   this.velocityScale = 1000.0; // divisor factor for velocity
@@ -257,9 +259,11 @@ function init() {
     text = new Parameters();
     gui = new dat.GUI();
     curColor = gui.addColor( text, "color");
+    texture = gui.add( text, 'particle', [ "Spheres", "Stars", "Donuts", "Franklin", "Bubble", "Triangles", "Unity" ] );
     modelScale = gui.add(text, 'geoscale', .01, 3);
     particleScale = gui.add(text, 'spritescale').min(.001).max(.03).step(.001);
     mouseScale = gui.add(text, 'mouseradius', 0, .01);
+
 
     folder1 = gui.addFolder('Movement Variabels');
     velScale = folder1.add(text, 'velocityScale').min(500).max(10000).step(100);
@@ -267,7 +271,7 @@ function init() {
     returnVel =folder1.add(text, 'returnSpeed').min(.001).max(.05).step(.001);
 
     folder2 = gui.addFolder('Flags');
-    attactFlag = folder2.add(text, 'attract').listen();
+    attractFlag = folder2.add(text, 'attract').listen();
     repelFlag = folder2.add(text, 'repel').listen();
     mouseFlag = folder2.add(text, 'mouseDrag');
     returnsFlag = folder2.add(text, 'returns');
@@ -285,7 +289,7 @@ function initSystem(object, child = 0) {
   var geo = new THREE.Geometry().fromBufferGeometry(object.children[child].geometry);
   sys = new Particles(geo);
   scene.add(sys.points);
-  attactFlag.onChange(function(value)
+  attractFlag.onChange(function(value)
     {   sys.attract = text.attract;
       if(sys.repel == true && sys.attract == true){
         sys.repel = false;
