@@ -1,17 +1,6 @@
 // Source for particleThings
 // work created by Zeana Llamas, Kalvin Janik, and John Noonan
 
-// examples
-// https://threejs.org/examples/webgl_points_sprites.html
-// https://www.youtube.com/watch?v=i7DR_Cedbmc
-// https://threejs.org/examples/webgl_interactive_points.html
-// https://threejs.org/examples/webgl_interactive_raycasting_points.html
-//https://threejs.org/examples/webgl_points_dynamic.html
-// https://tympanus.net/Development/3d-particle-explorations/index8.html
-// ui is http://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage
-// https://stemkoski.github.io/Three.js/GUI-Controller.html
-// https://www.youtube.com/watch?v=HtF2qWKM_go
-
 // CONSTANTS
 var ASPECT = window.innerWidth / window.innerHeight;
 var FOV = 80;
