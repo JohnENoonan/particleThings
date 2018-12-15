@@ -383,7 +383,7 @@ function getMouseFromRay() {
   raycaster.setFromCamera(mouseScreen, camera);
   var intersects = raycaster.intersectObject(sys.points);
   if (intersects.length) {
-    return sys.points.geometry.vertices[intersects[0].index];;
+    return sys.points.geometry.vertices[intersects[0].index];
   } else {
     return null;
   }
