@@ -1,7 +1,7 @@
 // Source for particleThings
 // work created by Zeana Llamas, Kalvin Janik, and John Noonan
 
-// CONSTANTS
+// CAMERA CONSTANTS
 var ASPECT = window.innerWidth / window.innerHeight;
 var FOV = 80;
 var NEAR = 0.01;
@@ -23,13 +23,13 @@ var attractFlag, repelFlag, mouseFlag, returnsFlag, text, folder, gui, curColor,
 var Parameters = function() {
   this.color = "#ffffff";
   this.geoscale = 1.0;
-  this.spritescale = .01;
+  this.spritescale = .005;
   this.model = "bunny";
   this.mouseradius = .001;
   this.particle = "disc";
   // movement variables
   this.velocityScale = 1000.0; // divisor factor for velocity
-  this.forceSpeed = .01; // speed points are attracted/repelled
+  this.forceSpeed = .03; // speed points are attracted/repelled
   this.returnSpeed = .01; // speed that the points use to return to original pos
   this.attract = false; // whether to have mouse attracttion on
   this.repel = false; // whether to have mouse repel on
@@ -60,6 +60,7 @@ class Particles {
     this.repel = text.repel; // whether to have mouse repel on
     this.mouseDrag = text.mouseDrag; // whether to have mouse dragging on
     this.returns = text.returns;
+    // set material
     var material = new THREE.PointsMaterial({
       color: this.color,
       size: this.spriteScale,
@@ -70,27 +71,14 @@ class Particles {
     material.alphaTest = 0.5; // allows for alpha in sprite to not be rendered
     // set this.points object that has particles
     this.points = new THREE.Points(geo, material);
-    // this.points.scale.x = this.points.scale.y = this.points.scale.z = this.geoScale;
     this.points.scale.set(this.geoScale, this.geoScale, this.geoScale);
     this.points.name = "points object";
     this.points.geometry.name = "geo object";
-    this.restP = deepCopy(this.points.geometry.vertices);
-  }
-
-  // testing to move points based on mouse movement
-  movePoints(sX, sY) {
-    // moves entire model according to mouse velocity
-    sX /= this.velocityScale;
-    sY /= this.velocityScale;
-    for (var i = 0; i < this.points.geometry.vertices.length; ++i) {
-      this.points.geometry.vertices[i].x += sX;
-      this.points.geometry.vertices[i].y += sY;
-    }
-    this.points.geometry.verticesNeedUpdate = true;
+    this.restP = deepCopy(this.points.geometry.vertices); // copy of original point position
   }
 
   // return list of point indexes that should be affected by mouse
-  // input is Vector2 in window coordinates [-1,1]
+  // input is Vector3 in world space
   getAffectedPoints(mPos) {
     var affectedVerts = []; // list of verts that are within region
     for (var i = 0; i < this.points.geometry.vertices.length; ++i) {
@@ -170,9 +158,7 @@ class Particles {
 
   // render loop update called each frame
   update() {
-    console
     if (this.attract) {
-      // console.log(this.attract);
       var mPosRay = getMouseFromRay(); // position of mouse from intersect
       if (mPosRay != null) {
         this.attractPoints(this.getAffectedPoints(mPosRay), mPosRay);
@@ -192,7 +178,7 @@ class Particles {
   }
 }
 
-// FUNCTIONS
+// initialize all elements and start listeners
 function init() {
   // init camera
   camera = new THREE.PerspectiveCamera(FOV, ASPECT, NEAR, FAR);
@@ -213,7 +199,6 @@ function init() {
     color: 0xffffff
   });
   // init raycaster for picking
-  //TODO need to make threshold = point size or so
   raycaster = new THREE.Raycaster();
   raycaster.params.Points.threshold = .02;
 
@@ -248,7 +233,7 @@ function init() {
   mouseScale = gui.add(text, 'mouseradius', 0, .01);
 
 
-  folder1 = gui.addFolder('Movement Variabels');
+  folder1 = gui.addFolder('Movement Variables');
   velScale = folder1.add(text, 'velocityScale').min(500).max(10000).step(100);
   particalVel = folder1.add(text, 'forceSpeed').min(.001).max(.05).step(.001);
   returnVel = folder1.add(text, 'returnSpeed').min(.001).max(.05).step(.001);
@@ -262,9 +247,9 @@ function init() {
 }
 
 // movement variables
-this.velocityScale = 1000.0; // divisor factor for velocity
-this.forceSpeed = .01; // speed points are attracted/repelled
-this.returnSpeed = .01; // speed that the points use to return to original pos
+// this.velocityScale = 1000.0; // divisor factor for velocity
+// this.forceSpeed = .01; // speed points are attracted/repelled
+// this.returnSpeed = .01; // speed that the points use to return to original pos
 
 // given THREE.Mesh initialize system to its geometry
 function initSystem(object, child = 0) {
@@ -318,7 +303,7 @@ function initSystem(object, child = 0) {
   particalVel.onChange(function(value) {
     sys.forceSpeed = text.forceSpeed;
   });
-  // set how fast particels return to rest
+  // set how fast particles return to rest
   returnVel.onChange(function(value) {
     sys.returnSpeed = text.returnSpeed;
   });
@@ -340,7 +325,7 @@ function initSystem(object, child = 0) {
     sys.restP = deepCopy(sys.points.geometry.vertices);
     sys.points.scale.set(sys.geoscale, sys.geoscale, sys.geoscale);
   });
-
+  // set particle scale
   particleScale.onChange(function(value) {
     sys.spritescale = text.spritescale;
     sys.points.material.size = sys.spritescale
@@ -367,6 +352,7 @@ function loadModel(model) {
   );
 }
 
+// function to create and return a deep copy of abritrary object
 function deepCopy(o) {
   var output, v, key;
   output = Array.isArray(o) ? [] : {};
@@ -416,7 +402,6 @@ function range(start, end) {
 
 // call back function that is executed on change of mouse velocity
 function handleVelocity() {
-  // var mVel = new THREE.Vector2(mouseVel.speedX, (-1) * mouseVel.speedY);
   var mVel = mouseVel.mVel;
   if (event != null) {
     // update mouse position
@@ -433,13 +418,6 @@ function handleVelocity() {
   }
 }
 
-// init field function - call in init
-// function initField() {
-//
-//
-//
-// }
-
 // animated render loop
 function animate() {
   stats.begin();
@@ -451,12 +429,9 @@ function animate() {
   stats.end();
   requestAnimationFrame(animate);
 }
-
-//gui load
-//window.onload = function() {
-
-//};
-
 // EXECUTION
+if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+  alert("ParticleThings is not made to work with mobile devices. Sorry about that.");
+}
 init();
 animate();
